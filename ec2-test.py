@@ -3,12 +3,14 @@ import argparse
 
 #Function to add a simple Tag to EC2 instances
 def tagResources(clientEc2,tag,resourcesList):
-	response = client.create_tags(DryRun=False,
-		Resources=[resourcesList],
+        for resource in resourcesList:
+            response = client.create_tags(DryRun=False,
+		Resources=[resource],
 		Tags=[{
 			'Key': 'name',
 			'Value': tag
-		},])
+                        },])
+        print "tag name:"+ tag + "is done"
 	
 #Basic launching of instances
 def launchInstances(clientEc2,nbInstances,keyName,securityGroup):
@@ -33,7 +35,7 @@ def launchInstances(clientEc2,nbInstances,keyName,securityGroup):
 	instanceList = []
 	#Iteration over the list of instances
 	for instance in instances:
-		print "InstanceId: "+ instance['InstanceId']
+		print "InstanceId: "+ instance['InstanceId'] + " is launched"
 		instanceList.append(instance['InstanceId'])
 	#Returning instances id's
 	return instanceList
@@ -41,7 +43,7 @@ def launchInstances(clientEc2,nbInstances,keyName,securityGroup):
 if __name__ == '__main__':
 
 	#Parsing arguments from CLI
-	parser = argparse.ArgumentParser(description='Script for creating dev environments')
+	parser = argparse.ArgumentParser(description='Python program for creating dev environments')
 	parser.add_argument('--instances',action="store",type=int ,dest="nbInstances",help='Number of instances you want to create')
 	parser.add_argument('--keyName',action="store",type=str, dest="keyName",help="KeyName with which you want to connect")
 	parser.add_argument('--sg',action="store",type=str,dest="securityGroup",help="SecurityGroup you want to launch your instances")
@@ -58,6 +60,7 @@ if __name__ == '__main__':
 
 	#Client connection
 	client = boto3.client('ec2')
+        #Launching instances
 	instancesList = launchInstances(client,nbInstances,keyName,securityGroup)
 	#Tagging instances for later retrieving
 	tagResources(client,tag,instancesList)
