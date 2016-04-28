@@ -40,6 +40,45 @@ def launchInstances(clientEc2,nbInstances,keyName,securityGroup):
 	#Returning instances id's
 	return instanceList
 
+def terminateInstancesByTag(clientEc2,InstancesTagged):
+	clientEc2.terminate_instances(DryRun=False,
+		InstanceIds=InstancesTagged)
+
+#Creation of a VPC
+def createVPC(clientEc2,vpcCidrBlock):
+    response = clientEc2.create_vpc(DryRun=False,
+            CidrBlock = vpcCidrBlock,
+            InstanceTenancy = 'default')
+
+    vpcId = response['Vpc']['VpcId']
+    print "VpcId: " + vpcId + " created"
+
+    return vpcId
+
+#get List Instances ID
+def getInstancesIdByTag(clientEc2,tag):
+	#We get the instances By Tag Value
+	response = clientEc2.describe_instances(DryRun=False,
+	InstanceIds=[],
+	Filters=[{
+		'Name': 'tag-value',
+		'Values': [tag]
+	}])
+
+	reservations = response['Reservations']
+#We have on reservation here
+	reservation_1 = reservations[0]
+#We get the list of instances
+	instances = reservation_1['Instances']
+	
+	instanceList = []
+
+	for instance in instances:
+		print instance['InstanceId'] + " is going to be terminated"
+		instanceList.append(instance['InstanceId'])
+
+	return instanceList
+
 if __name__ == '__main__':
 
 	#Parsing arguments from CLI
@@ -48,6 +87,8 @@ if __name__ == '__main__':
 	parser.add_argument('--keyName',action="store",type=str, dest="keyName",help="KeyName with which you want to connect")
 	parser.add_argument('--sg',action="store",type=str,dest="securityGroup",help="SecurityGroup you want to launch your instances")
 	parser.add_argument('--tag',action="store",type=str,dest="tag",help="Tag you want to apply to your resources")
+        parser.add_argument('--vpc',action="store",type=str,dest="vpc",help="Specify vpcCidrBlock for your vpc")
+        parser.add_argument('--destroy',action="store",type=str,dest="destroyTag",help="Specify the tag for the instances you want to terminate")
 
 	#Storing arguments CLI into variables
 	results = parser.parse_args()
@@ -55,13 +96,26 @@ if __name__ == '__main__':
 	nbInstances = results.nbInstances
 	keyName = results.keyName
 	securityGroup = results.securityGroup
-	tag = results.tag
-
+	tag = results.tag 
+	vpcCidr = results.vpc
+	destroyTag = results.destroyTag
 
 	#Client connection
 	client = boto3.client('ec2')
-        #Launching instances
-	instancesList = launchInstances(client,nbInstances,keyName,securityGroup)
-	#Tagging instances for later retrieving
-	tagResources(client,tag,instancesList)
+
+        if nbInstances is not None:
+            #Launching instances
+	    print keyName
+	    print securityGroup
+
+            instancesList = launchInstances(client,nbInstances,keyName,securityGroup)
+            #Tagging instances for later retrieving
+            tagResources(client,tag,instancesList)
+	    
+	if vpcCidr is not None:	
+            #Creation of the VPC
+	    createVPC(client,vpcCidr)
 	
+	if destroyTag is not None:
+		instancesTagged = getInstancesIdByTag(client,destroyTag)
+		terminateInstancesByTag(client,instancesTagged)	
